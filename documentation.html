@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation - DynaRecrut</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.7; }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  
+  /* Cover */
+  .cover { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: white; border-radius: 24px; padding: 60px 48px; margin-bottom: 48px; text-align: center; }
+  .cover h1 { font-size: 42px; font-weight: 800; margin-bottom: 8px; }
+  .cover .subtitle { font-size: 18px; opacity: 0.85; margin-bottom: 24px; }
+  .cover .meta { display: flex; justify-content: center; gap: 32px; font-size: 14px; opacity: 0.7; }
+  .cover .logo { width: 64px; height: 64px; background: rgba(255,255,255,0.15); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 28px; }
+
+  /* Sections */
+  section { background: white; border-radius: 16px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+  h2 { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 3px solid #4f46e5; display: inline-block; }
+  h3 { font-size: 18px; font-weight: 600; color: #1e293b; margin: 20px 0 8px; }
+  h4 { font-size: 15px; font-weight: 600; color: #334155; margin: 16px 0 6px; }
+  p { margin-bottom: 12px; color: #475569; }
+  ul, ol { margin: 8px 0 16px 20px; color: #475569; }
+  li { margin-bottom: 4px; }
+  code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 13px; color: #4f46e5; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 16px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.5; margin: 12px 0; }
+  pre .comment { color: #64748b; }
+  pre .keyword { color: #818cf8; }
+  pre .string { color: #34d399; }
+  pre .type { color: #f472b6; }
+
+  .badge { display: inline-block; background: #eef2ff; color: #4f46e5; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-green { background: #ecfdf5; color: #059669; }
+  .badge-amber { background: #fffbeb; color: #d97706; }
+
+  .tree { font-family: 'Courier New', monospace; background: #f8fafc; padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; font-size: 13px; line-height: 1.8; }
+  .tree .folder { color: #4f46e5; font-weight: 600; }
+  .tree .file { color: #475569; }
+  .tree .desc { color: #94a3b8; font-style: italic; }
+
+  .file-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin: 12px 0; }
+  .file-card .file-name { font-weight: 700; color: #0f172a; font-size: 15px; margin-bottom: 4px; }
+  .file-card .file-path { font-size: 12px; color: #94a3b8; margin-bottom: 8px; }
+  .file-card .file-desc { color: #475569; font-size: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th { background: #f1f5f9; text-align: left; padding: 10px 12px; font-weight: 600; color: #1e293b; border-bottom: 2px solid #e2e8f0; }
+  td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; color: #475569; }
+  tr:hover td { background: #f8fafc; }
+
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 16px 0; }
+  .flow-step { background: #eef2ff; color: #4f46e5; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; }
+  .flow-arrow { color: #94a3b8; font-size: 18px; }
+
+  @media print { body { background: white; } .cover { break-inside: avoid; } section { break-inside: avoid; box-shadow: none; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- COVER -->
+<div class="cover">
+  <div class="logo">📄</div>
+  <h1>DynaRecrut</h1>
+  <p class="subtitle">Plateforme de gestion et d'analyse de CV par critères</p>
+  
+</div>
+
+<section>
+  <h2>Sommaire</h2>
+  <ol style="font-weight:500;">
+    <li>Présentation du projet</li>
+    <li>Architecture et arborescence</li>
+    <li>Types et interfaces (types/index.ts)</li>
+    <li>Store et persistance (stores/jobs.ts)</li>
+    <li>Extraction PDF (utils/cvParser.ts)</li>
+    <li>Calcul de compatibilité (utils/matchCalculator.ts)</li>
+    <li>Page d'accueil - Tableau de bord (+page.svelte)</li>
+    <li>Création d'offre (recruiter/new/+page.svelte)</li>
+    <li>Détail offre + candidatures (recruiter/job/[id]/+page.svelte)</li>
+    <li>Page candidat (apply/[slug]/+page.svelte)</li>
+    <li>Configuration (vite.config.ts, uno.config.js, app.html)</li>
+    <li>Flux utilisateur complet</li>
+  </ol>
+</section>
+
+<!-- 1. PRÉSENTATION -->
+<section>
+  <h2>1. Présentation du projet</h2>
+  <p><strong>DynaRecrut</strong> est une application web de gestion de CV qui permet aux recruteurs de :</p>
+  <ul>
+    <li>Créer des offres d'emploi avec des <strong>critères d'analyse</strong> personnalisés (groupes de mots-clés avec poids)</li>
+    <li>Générer un <strong>lien de candidature unique</strong> pour chaque offre</li>
+    <li>Recevoir les CV des candidats via <strong>drag-and-drop</strong> (PDF/TXT)</li>
+    <li>Analyser automatiquement les CV : <strong>score de compatibilité</strong> par groupe de critères et score global pondéré</li>
+    <li>Visualiser les candidatures triées par score, filtrer par seuil minimum</li>
+    <li>Télécharger les CV originaux des candidats</li>
+    <li>Définir une <strong>date limite</strong> de candidature (lien désactivé après expiration)</li>
+  </ul>
+  <p><strong>Stack technique :</strong></p>
+  <ul>
+    <li><strong>Frontend :</strong> SvelteKit 5 (mode runes) + TypeScript</li>
+    <li><strong>Styling :</strong> UnoCSS + Tailwind (via presetUno)</li>
+    <li><strong>PDF :</strong> pdfjs-dist pour l'extraction de texte</li>
+    <li><strong>Persistance :</strong> localStorage (aucun backend requis)</li>
+    <li><strong>Build :</strong> Vite 8</li>
+  </ul>
+</section>
+
+<!-- 2. ARBORESCENCE -->
+<section>
+  <h2>2. Architecture et arborescence</h2>
+  <div class="tree">
+<span class="folder">dyna/</span><br>
+├── <span class="file">package.json</span>              <span class="desc"># Dépendances et scripts</span><br>
+├── <span class="file">vite.config.ts</span>             <span class="desc"># Configuration Vite + UnoCSS + SvelteKit</span><br>
+├── <span class="file">uno.config.js</span>              <span class="desc"># Configuration UnoCSS (presets)</span><br>
+├── <span class="file">tsconfig.json</span>              <span class="desc"># Configuration TypeScript</span><br>
+├── <span class="file">documentation.html</span>         <span class="desc"># Ce fichier de documentation</span><br>
+│<br>
+├── <span class="folder">src/</span><br>
+│   ├── <span class="file">app.html</span>                 <span class="desc"># Template HTML racine (Inter font)</span><br>
+│   ├── <span class="file">app.d.ts</span>                 <span class="desc"># Déclarations TypeScript globales</span><br>
+│   │<br>
+│   ├── <span class="folder">lib/</span><br>
+│   │   ├── <span class="folder">types/</span><br>
+│   │   │   └── <span class="file">index.ts</span>            <span class="desc"># Types : JobPost, CriterionGroup, CandidateApplication...</span><br>
+│   │   ├── <span class="folder">stores/</span><br>
+│   │   │   └── <span class="file">jobs.ts</span>              <span class="desc"># CRUD localStorage (offres + candidatures)</span><br>
+│   │   └── <span class="folder">utils/</span><br>
+│   │       ├── <span class="file">cvParser.ts</span>          <span class="desc"># Extraction texte depuis PDF (pdfjs-dist)</span><br>
+│   │       └── <span class="file">matchCalculator.ts</span>   <span class="desc"># Calcul scores de compatibilité</span><br>
+│   │<br>
+│   └── <span class="folder">routes/</span><br>
+│       ├── <span class="file">+page.svelte</span>            <span class="desc"># Page d'accueil : tableau de bord recruteur</span><br>
+│       ├── <span class="file">+layout.svelte</span>          <span class="desc"># Layout global (import UnoCSS)</span><br>
+│       │<br>
+│       ├── <span class="folder">recruiter/</span><br>
+│       │   ├── <span class="folder">new/</span><br>
+│       │   │   └── <span class="file">+page.svelte</span>      <span class="desc"># Création d'offre avec critères</span><br>
+│       │   └── <span class="folder">job/[id]/</span><br>
+│       │       └── <span class="file">+page.svelte</span>      <span class="desc"># Détail offre + liste candidatures + analyse</span><br>
+│       │<br>
+│       └── <span class="folder">apply/[slug]/</span><br>
+│           └── <span class="file">+page.svelte</span>          <span class="desc"># Page publique de candidature</span><br>
+│<br>
+└── <span class="folder">static/</span><br>
+    └── <span class="file">robots.txt</span>               <span class="desc"># Fichier robots</span>
+  </div>
+</section>
+
+<!-- 3. TYPES -->
+<section>
+  <h2>3. Types et interfaces (types/index.ts)</h2>
+  <p>Ce fichier définit toutes les structures de données utilisées dans l'application.</p>
+
+  <div class="file-card">
+    <div class="file-name">CriterionKeyword</div>
+    <div class="file-path">src/lib/types/index.ts</div>
+    <div class="file-desc">Un mot-clé avec son poids individuel (1-5). Exemple : { text: "Next.js", weight: 3 }</div>
+  </div>
+  <pre><span class="keyword">export interface</span> <span class="type">CriterionKeyword</span> {
+  text: <span class="type">string</span>;      <span class="comment">// Le mot-clé recherché</span>
+  weight: <span class="type">number</span>;    <span class="comment">// Importance 1-5</span>
+}</pre>
+
+  <div class="file-card">
+    <div class="file-name">CriterionGroup</div>
+    <div class="file-path">src/lib/types/index.ts</div>
+    <div class="file-desc">Un groupe de mots-clés thématique (ex: "Langages de programmation") avec un poids global.</div>
+  </div>
+  <pre><span class="keyword">export interface</span> <span class="type">CriterionGroup</span> {
+  id: <span class="type">string</span>;              <span class="comment">// UUID unique</span>
+  name: <span class="type">string</span>;            <span class="comment">// Nom du groupe</span>
+  keywords: <span class="type">CriterionKeyword</span>[];  <span class="comment">// Liste des mots-clés</span>
+  weight: <span class="type">number</span>;          <span class="comment">// Poids du groupe 1-5</span>
+}</pre>
+
+  <div class="file-card">
+    <div class="file-name">JobPost</div>
+    <div class="file-path">src/lib/types/index.ts</div>
+    <div class="file-desc">Une offre d'emploi avec ses critères, sa date limite et son slug unique pour le lien de candidature.</div>
+  </div>
+  <pre><span class="keyword">export interface</span> <span class="type">JobPost</span> {
+  id: <span class="type">string</span>;              <span class="comment">// UUID</span>
+  title: <span class="type">string</span>;           <span class="comment">// Titre du poste</span>
+  description: <span class="type">string</span>;     <span class="comment">// Description</span>
+  company: <span class="type">string</span>;         <span class="comment">// Nom de l'entreprise</span>
+  slug: <span class="type">string</span>;            <span class="comment">// Identifiant pour l'URL /apply/[slug]</span>
+  criteria: <span class="type">CriterionGroup</span>[]; <span class="comment">// Critères d'analyse</span>
+  deadline: <span class="type">number</span> | <span class="keyword">null</span>; <span class="comment">// Timestamp limite (null = pas de limite)</span>
+  createdAt: <span class="type">number</span>;       <span class="comment">// Timestamp de création</span>
+}</pre>
+
+  <div class="file-card">
+    <div class="file-name">MatchResult</div>
+    <div class="file-path">src/lib/types/index.ts</div>
+    <div class="file-desc">Résultat de l'analyse d'un CV pour un groupe de critères : mots trouvés, manquants, pourcentage.</div>
+  </div>
+  <pre><span class="keyword">export interface</span> <span class="type">MatchResult</span> {
+  groupId: <span class="type">string</span>;          <span class="comment">// ID du groupe</span>
+  groupName: <span class="type">string</span>;        <span class="comment">// Nom du groupe</span>
+  foundKeywords: <span class="type">string</span>[];   <span class="comment">// Mots-clés trouvés dans le CV</span>
+  missingKeywords: <span class="type">string</span>[]; <span class="comment">// Mots-clés absents</span>
+  totalKeywords: <span class="type">number</span>;     <span class="comment">// Nombre total de mots-clés</span>
+  foundCount: <span class="type">number</span>;        <span class="comment">// Nombre trouvés</span>
+  matchPercentage: <span class="type">number</span>;   <span class="comment">// Pourcentage de correspondance</span>
+}</pre>
+
+  <div class="file-card">
+    <div class="file-name">CandidateApplication</div>
+    <div class="file-path">src/lib/types/index.ts</div>
+    <div class="file-desc">Une candidature complète avec les infos du candidat, le texte extrait du CV, les données du fichier en base64, et les résultats d'analyse.</div>
+  </div>
+  <pre><span class="keyword">export interface</span> <span class="type">CandidateApplication</span> {
+  id: <span class="type">string</span>;                <span class="comment">// UUID</span>
+  jobId: <span class="type">string</span>;             <span class="comment">// ID de l'offre associée</span>
+  candidateName: <span class="type">string</span>;     <span class="comment">// Nom du candidat</span>
+  email: <span class="type">string</span>;            <span class="comment">// Email</span>
+  cvText: <span class="type">string</span>;            <span class="comment">// Texte extrait du CV</span>
+  cvFileName: <span class="type">string</span>;        <span class="comment">// Nom du fichier original</span>
+  cvFileData: <span class="type">string</span>;        <span class="comment">// Fichier encodé en base64</span>
+  cvFileType: <span class="type">string</span>;        <span class="comment">// Type MIME du fichier</span>
+  matchResults: <span class="type">MatchResult</span>[]; <span class="comment">// Résultats par groupe</span>
+  overallMatch: <span class="type">number</span>;       <span class="comment">// Score global pondéré</span>
+  appliedAt: <span class="type">number</span>;         <span class="comment">// Timestamp de candidature</span>
+}</pre>
+</section>
+
+<!-- 4. STORE -->
+<section>
+  <h2>4. Store et persistance (stores/jobs.ts)</h2>
+  <p>Ce module gère toutes les données via <strong>localStorage</strong>. Pas de backend nécessaire.</p>
+
+  <h3>Fonctions principales</h3>
+  <table>
+    <tr><th>Fonction</th><th>Description</th></tr>
+    <tr><td><code>getJobs()</code></td><td>Retourne toutes les offres</td></tr>
+    <tr><td><code>getJob(id)</code></td><td>Retourne une offre par son ID</td></tr>
+    <tr><td><code>getJobBySlug(slug)</code></td><td>Retourne une offre par son slug (pour le lien public)</td></tr>
+    <tr><td><code>createJob(data)</code></td><td>Crée une offre avec ID, slug et timestamp automatiques</td></tr>
+    <tr><td><code>deleteJob(id)</code></td><td>Supprime une offre et ses candidatures associées</td></tr>
+    <tr><td><code>getApplications(jobId?)</code></td><td>Retourne les candidatures (filtrées par offre si jobId fourni)</td></tr>
+    <tr><td><code>addApplication(app)</code></td><td>Ajoute une candidature</td></tr>
+  </table>
+
+  <h3>Détail du code</h3>
+  <pre><span class="comment">// Clés de stockage localStorage</span>
+<span class="keyword">const</span> JOBS_KEY = <span class="string">'dyna_jobs'</span>;
+<span class="keyword">const</span> APPS_KEY = <span class="string">'dyna_apps'</span>;
+
+<span class="comment">// Fonctions utilitaires privées</span>
+<span class="keyword">function</span> loadFromStorage<T>(key, fallback): T {
+  <span class="keyword">if</span> (!browser) <span class="keyword">return</span> fallback;  <span class="comment">// SSR guard</span>
+  <span class="keyword">try</span> { <span class="keyword">return</span> JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  <span class="keyword">catch</span> { <span class="keyword">return</span> fallback; }
+}
+
+<span class="keyword">function</span> generateSlug(title: string): string {
+  <span class="comment">// Normalise le titre : supprime accents, remplace espaces par -, ajoute 6 caractères aléatoires</span>
+  <span class="keyword">return</span> title.toLowerCase()
+    .normalize(<span class="string">'NFD'</span>).replace(<span class="regex">/[\u0300-\u036f]/g</span>, <span class="string">''</span>)
+    .replace(<span class="regex">/[^a-z0-9]+/g</span>, <span class="string">'-'</span>)
+    .replace(<span class="regex">/^-|-$/g</span>, <span class="string">''</span>)
+    + <span class="string">'-'</span> + Math.random().toString(<span class="number">36</span>).substring(<span class="number">2</span>, <span class="number">8</span>);
+}</pre>
+
+  <h3>Génération du slug</h3>
+  <p>Le slug est généré à partir du titre du poste :</p>
+  <ul>
+    <li>Mise en minuscules</li>
+    <li>Suppression des accents (normalisation NFD)</li>
+    <li>Remplacement des caractères non-alphanumériques par des tirets</li>
+    <li>Ajout de 6 caractères aléatoires pour garantir l'unicité</li>
+  </ul>
+  <p>Exemple : "Développeur Full-Stack" → <code>developpeur-full-stack-a3x8k2</code></p>
+</section>
+
+<!-- 5. CV PARSER -->
+<section>
+  <h2>5. Extraction PDF (utils/cvParser.ts)</h2>
+  <p>Ce module utilise <strong>pdfjs-dist</strong> pour extraire le texte des fichiers PDF. Il gère aussi les fichiers TXT.</p>
+
+  <h3>Initialisation du worker</h3>
+  <pre><span class="keyword">async function</span> initWorker() {
+  <span class="keyword">const</span> mod = <span class="keyword">await</span> <span class="keyword">import</span>(<span class="string">'pdfjs-dist'</span>);
+  pdfjsLib = mod;
+
+  <span class="comment">// Stratégie 1 : Worker bundle via Vite (?worker)</span>
+  <span class="keyword">try</span> {
+    <span class="keyword">const</span> worker = <span class="keyword">await</span> <span class="keyword">import</span>(<span class="string">'pdfjs-dist/build/pdf.worker.mjs?worker'</span>);
+    pdfjsLib.GlobalWorkerOptions.workerPort = <span class="keyword">new</span> worker.default();
+  } <span class="keyword">catch</span> {
+    <span class="comment">// Stratégie 2 : URL locale</span>
+    <span class="keyword">try</span> {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = <span class="keyword">new</span> URL(
+        <span class="string">'pdfjs-dist/build/pdf.worker.mjs'</span>, import.meta.url
+      ).toString();
+    } <span class="keyword">catch</span> {
+      <span class="comment">// Stratégie 3 : CDN (fallback)</span>
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        <span class="string">`https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`</span>;
+    }
+  }
+}</pre>
+
+  <h3>Extraction du texte</h3>
+  <pre><span class="keyword">export async function</span> extractTextFromPDF(file: File): <span class="type">Promise</span><<span class="type">string</span>> {
+  <span class="keyword">await</span> initWorker();
+  <span class="keyword">const</span> arrayBuffer = <span class="keyword">await</span> file.arrayBuffer();
+  <span class="keyword">const</span> pdf = <span class="keyword">await</span> pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  <span class="keyword">let</span> fullText = <span class="string">''</span>;
+
+  <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">1</span>; i <= pdf.numPages; i++) {
+    <span class="keyword">const</span> page = <span class="keyword">await</span> pdf.getPage(i);
+    <span class="keyword">const</span> content = <span class="keyword">await</span> page.getTextContent();
+    <span class="keyword">const</span> pageText = content.items
+      .map(<span class="keyword">(item: any)</span> => item.str)
+      .filter(<span class="keyword">(s: string)</span> => s)
+      .join(<span class="string">' '</span>);
+    fullText += pageText + <span class="string">'\n'</span>;
+  }
+  <span class="keyword">return</span> fullText.trim();
+}</pre>
+
+  <p><strong>Fonction d'entrée :</strong></p>
+  <pre><span class="keyword">export function</span> extractTextFromFile(file: File): <span class="type">Promise</span><<span class="type">string</span>> {
+  <span class="keyword">if</span> (file.type === <span class="string">'application/pdf'</span> || file.name.endsWith(<span class="string">'.pdf'</span>))
+    <span class="keyword">return</span> extractTextFromPDF(file);
+  <span class="keyword">return</span> file.text();  <span class="comment">// Pour les fichiers .txt</span>
+}</pre>
+</section>
+
+<!-- 6. MATCH CALCULATOR -->
+<section>
+  <h2>6. Calcul de compatibilité (utils/matchCalculator.ts)</h2>
+  <p>Ce module analyse le texte d'un CV par rapport aux critères définis pour une offre.</p>
+
+  <h3>Fonction calculateMatch</h3>
+  <p>Analyse chaque groupe de critères indépendamment :</p>
+  <pre><span class="keyword">export function</span> calculateMatch(cvText: string, criteria: <span class="type">CriterionGroup</span>[]): <span class="type">MatchResult</span>[] {
+  <span class="keyword">const</span> cvLower = cvText.toLowerCase();
+
+  <span class="keyword">return</span> criteria.map(group => {
+    <span class="keyword">const</span> foundKeywords: <span class="type">string</span>[] = [];
+    <span class="keyword">const</span> missingKeywords: <span class="type">string</span>[] = [];
+
+    <span class="keyword">for</span> (<span class="keyword">const</span> keyword of group.keywords) {
+      <span class="keyword">if</span> (cvLower.includes(keyword.text.toLowerCase().trim())) {
+        foundKeywords.push(keyword.text);
+      } <span class="keyword">else</span> {
+        missingKeywords.push(keyword.text);
+      }
+    }
+
+    <span class="keyword">const</span> matchPercentage = group.keywords.length > <span class="number">0</span>
+      ? Math.round((foundKeywords.length / group.keywords.length) * <span class="number">100</span>)
+      : <span class="number">0</span>;
+
+    <span class="keyword">return</span> { groupId: group.id, groupName: group.name,
+             foundKeywords, missingKeywords,
+             totalKeywords: group.keywords.length,
+             foundCount: foundKeywords.length, matchPercentage };
+  });
+}</pre>
+
+  <h3>Fonction calculateOverallMatch (score global pondéré)</h3>
+  <p>Calcule une moyenne pondérée où chaque groupe a un poids :</p>
+  <pre><span class="keyword">export function</span> calculateOverallMatch(cvText: string, criteria: <span class="type">CriterionGroup</span>[]): <span class="type">number</span> {
+  <span class="keyword">if</span> (criteria.length === <span class="number">0</span>) <span class="keyword">return</span> <span class="number">0</span>;
+
+  <span class="keyword">let</span> totalWeight = <span class="number">0</span>;
+  <span class="keyword">let</span> weightedSum = <span class="number">0</span>;
+
+  <span class="keyword">for</span> (<span class="keyword">const</span> group of criteria) {
+    <span class="keyword">const</span> match = calculateMatch(cvText, [group])[<span class="number">0</span>];
+    weightedSum += match.matchPercentage * group.weight;
+    totalWeight += group.weight;
+  }
+
+  <span class="keyword">return</span> totalWeight > <span class="number">0</span> ? Math.round(weightedSum / totalWeight) : <span class="number">0</span>;
+}</pre>
+
+  <h3>Exemple de calcul</h3>
+  <table>
+    <tr><th>Groupe</th><th>Poids</th><th>Mots trouvés</th><th>Score groupe</th><th>Contribution</th></tr>
+    <tr><td>Langages</td><td>5</td><td>3/3 (100%)</td><td>100%</td><td>100 × 5 = 500</td></tr>
+    <tr><td>Base de données</td><td>3</td><td>1/2 (50%)</td><td>50%</td><td>50 × 3 = 150</td></tr>
+    <tr><td>Soft skills</td><td>2</td><td>1/4 (25%)</td><td>25%</td><td>25 × 2 = 50</td></tr>
+    <tr style="font-weight:700;background:#f1f5f9;"><td colspan="2">Total</td><td colspan="2">Poids cumulé : 10</td><td>700 / 10 = <strong>70%</strong></td></tr>
+  </table>
+</section>
+
+<!-- 7. DASHBOARD -->
+<section>
+  <h2>7. Page d'accueil - Tableau de bord (+page.svelte)</h2>
+  <p><span class="badge">Route : /</span></p>
+
+  <h3>Rôle</h3>
+  <p>Affiche la liste de toutes les offres d'emploi avec des statistiques (nombre de candidatures, score moyen de match). Permet de naviguer vers les détails ou de supprimer une offre.</p>
+
+  <h3>Structure du code</h3>
+  <ul>
+    <li><strong>Script</strong> : Importe <code>getJobs</code>, <code>deleteJob</code>, <code>getApplications</code> du store. Utilise <code>$state</code> pour la réactivité et <code>onMount</code> pour charger les données.</li>
+    <li><strong>Top bar</strong> : Logo "DynaRecrut" + bouton "Nouvelle Offre" avec dégradé indigo/violet</li>
+    <li><strong>Stats cards</strong> : 3 cartes (offres actives, total candidatures, match moyen global) avec icônes colorées</li>
+    <li><strong>Liste des offres</strong> : Chaque offre affiche titre, entreprise, date, nombre de groupes de critères, statut deadline, nombre de candidatures et score moyen</li>
+    <li><strong>Modal de suppression</strong> : Confirmation avec backdrop blur et boutons gradient</li>
+  </ul>
+
+  <h3>Fonctions clés</h3>
+  <pre><span class="keyword">function</span> getAppCount(jobId: string): <span class="type">number</span> {
+  <span class="keyword">return</span> getApplications(jobId).length;
+}
+
+<span class="keyword">function</span> getAvgMatch(jobId: string): <span class="type">number</span> {
+  <span class="keyword">const</span> apps = getApplications(jobId);
+  <span class="keyword">if</span> (apps.length === <span class="number">0</span>) <span class="keyword">return</span> <span class="number">0</span>;
+  <span class="keyword">return</span> Math.round(apps.reduce(<span class="keyword">(s, a)</span> => s + a.overallMatch, <span class="number">0</span>) / apps.length);
+}</pre>
+</section>
+
+<!-- 8. JOB CREATION -->
+<section>
+  <h2>8. Création d'offre (recruiter/new/+page.svelte)</h2>
+  <p><span class="badge">Route : /recruiter/new</span></p>
+
+  <h3>Rôle</h3>
+  <p>Formulaire de création d'une offre d'emploi avec définition des groupes de critères et mots-clés.</p>
+
+  <h3>États réactifs</h3>
+  <pre><span class="keyword">let</span> title = $state(<span class="string">''</span>);        <span class="comment">// Titre du poste</span>
+<span class="keyword">let</span> company = $state(<span class="string">''</span>);       <span class="comment">// Entreprise</span>
+<span class="keyword">let</span> description = $state(<span class="string">''</span>);  <span class="comment">// Description</span>
+<span class="keyword">let</span> deadline = $state(<span class="string">''</span>);      <span class="comment">// Date limite (format datetime-local)</span>
+<span class="keyword">let</span> criteria = $state<<span class="type">CriterionGroup</span>[]>([]);  <span class="comment">// Groupes ajoutés</span>
+<span class="keyword">let</span> error = $state(<span class="string">''</span>);         <span class="comment">// Message d'erreur</span>
+
+<span class="comment">// État du groupe en cours d'édition</span>
+<span class="keyword">let</span> groupName = $state(<span class="string">''</span>);
+<span class="keyword">let</span> keywordInput = $state(<span class="string">''</span>);
+<span class="keyword">let</span> groupWeight = $state(<span class="number">3</span>);
+<span class="keyword">let</span> keywords = $state<<span class="type">CriterionKeyword</span>[]>([]);</pre>
+
+  <h3>Fonction handleSubmit</h3>
+  <pre><span class="keyword">function</span> handleSubmit() {
+  <span class="keyword">if</span> (!title.trim() || !company.trim()) { error = <span class="string">'...'</span>; <span class="keyword">return</span>; }
+  <span class="keyword">if</span> (criteria.length === <span class="number">0</span>) { error = <span class="string">'...'</span>; <span class="keyword">return</span>; }
+
+  <span class="keyword">const</span> deadlineTimestamp = deadline ? <span class="keyword">new</span> Date(deadline).getTime() : <span class="keyword">null</span>;
+
+  <span class="keyword">const</span> job = createJob({
+    title: title.trim(), company: company.trim(),
+    description: description.trim(),
+    deadline: deadlineTimestamp,
+    criteria,
+  });
+  goto(<span class="string">`/recruiter/job/${job.id}`</span>);
+}</pre>
+
+  <h3>Fonction addGroup</h3>
+  <p>Valide et ajoute le groupe en cours d'édition à la liste des critères, puis réinitialise le formulaire.</p>
+  <pre><span class="keyword">function</span> addGroup() {
+  <span class="keyword">if</span> (!groupName.trim()) { error = <span class="string">'Veuillez donner un nom au groupe'</span>; <span class="keyword">return</span>; }
+  <span class="keyword">if</span> (keywords.length === <span class="number">0</span>) { error = <span class="string">'Ajoutez au moins un mot-clé'</span>; <span class="keyword">return</span>; }
+
+  <span class="keyword">const</span> group: <span class="type">CriterionGroup</span> = {
+    id: crypto.randomUUID(),
+    name: groupName.trim(),
+    keywords: [...keywords],
+    weight: groupWeight,
+  };
+  criteria = [...criteria, group];
+  <span class="comment">// Reset</span>
+  groupName = <span class="string">''</span>; keywords = []; groupWeight = <span class="number">3</span>; error = <span class="string">''</span>;
+}</pre>
+</section>
+
+<!-- 9. JOB DETAILS -->
+<section>
+  <h2>9. Détail offre + candidatures (recruiter/job/[id]/+page.svelte)</h2>
+  <p><span class="badge">Route : /recruiter/job/[id]</span></p>
+
+  <h3>Rôle</h3>
+  <p>Affiche les détails d'une offre, la liste des candidatures avec scores, et une modale détaillée pour chaque candidat.</p>
+
+  <h3>Fonctionnalités</h3>
+  <ul>
+    <li><strong>En-tête</strong> : Titre, entreprise, description, date limite, lien de candidature copiable</li>
+    <li><strong>Filtres</strong> : Tri par score ou date, filtre par seuil minimum (40%, 60%, 80%)</li>
+    <li><strong>Liste des candidatures</strong> : Chaque candidat affiche un cercle SVG avec le score, son nom, email, fichier, et les scores par groupe</li>
+    <li><strong>Modale détaillée</strong> : Score global en grand cercle, barres de progression par groupe, mots trouvés (vert) / manquants (rouge), texte extrait du CV, bouton de téléchargement</li>
+  </ul>
+
+  <h3>Code clé : Cercle de score SVG</h3>
+  <pre><div class="relative w-16 h-16 flex-shrink-0">
+  <svg class="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+    <circle cx="18" cy="18" r="15.5" fill="none"
+            class="stroke-slate-100" stroke-width="3"/>
+    <circle cx="18" cy="18" r="15.5" fill="none"
+            class={getMatchRing(app.overallMatch)}
+            stroke-width="3"
+            stroke-dasharray={`${app.overallMatch}, 100`}
+            stroke-linecap="round"/>
+  </svg>
+  <div class="absolute inset-0 flex items-center justify-center">
+    <span class="text-lg font-bold {getMatchColor(app.overallMatch)}">
+      {app.overallMatch}%
+    </span>
+  </div>
+</div></pre>
+
+  <h3>Fonctions de couleur</h3>
+  <pre><span class="keyword">function</span> getMatchColor(pct: number): <span class="type">string</span> {
+  <span class="keyword">if</span> (pct >= <span class="number">80</span>) <span class="keyword">return</span> <span class="string">'text-emerald-600'</span>;
+  <span class="keyword">if</span> (pct >= <span class="number">60</span>) <span class="keyword">return</span> <span class="string">'text-blue-600'</span>;
+  <span class="keyword">if</span> (pct >= <span class="number">40</span>) <span class="keyword">return</span> <span class="string">'text-amber-600'</span>;
+  <span class="keyword">return</span> <span class="string">'text-red-500'</span>;
+}
+
+<span class="keyword">function</span> getMatchRing(pct: number): <span class="type">string</span> {
+  <span class="keyword">if</span> (pct >= <span class="number">80</span>) <span class="keyword">return</span> <span class="string">'stroke-emerald-500'</span>;
+  <span class="keyword">if</span> (pct >= <span class="number">60</span>) <span class="keyword">return</span> <span class="string">'stroke-blue-500'</span>;
+  <span class="keyword">if</span> (pct >= <span class="number">40</span>) <span class="keyword">return</span> <span class="string">'stroke-amber-500'</span>;
+  <span class="keyword">return</span> <span class="string">'stroke-red-400'</span>;
+}</pre>
+
+  <h3>Téléchargement du CV</h3>
+  <pre><span class="keyword">const</span> link = document.createElement(<span class="string">'a'</span>);
+link.href = <span class="string">`data:${app.cvFileType};base64,${app.cvFileData}`</span>;
+link.download = app.cvFileName;
+link.click();</pre>
+  <p>Le fichier CV est stocké en base64 dans localStorage via <code>cvFileData</code>. Cette technique permet de reconstituer et télécharger le fichier original sans serveur.</p>
+</section>
+
+<!-- 10. APPLY PAGE -->
+<section>
+  <h2>10. Page candidat (apply/[slug]/+page.svelte)</h2>
+  <p><span class="badge">Route : /apply/[slug]</span></p>
+
+  <h3>Rôle</h3>
+  <p>Page publique où les candidats déposent leur CV. Accessible uniquement via le lien généré par le recruteur.</p>
+
+  <h3>États et logique</h3>
+  <pre><span class="keyword">let</span> job = $state<<span class="type">ReturnType</span><<span class="keyword">typeof</span> getJobBySlug>>(<span class="keyword">undefined</span>);
+<span class="keyword">let</span> loading = $state(<span class="keyword">true</span>);
+<span class="keyword">let</span> notFound = $state(<span class="keyword">false</span>);
+<span class="keyword">let</span> expired = $state(<span class="keyword">false</span>);  <span class="comment">// Deadline dépassée</span>
+
+<span class="keyword">let</span> name = $state(<span class="string">''</span>);
+<span class="keyword">let</span> email = $state(<span class="string">''</span>);
+<span class="keyword">let</span> cvFile = $state<<span class="type">File</span> | <span class="keyword">null</span>>(<span class="keyword">null</span>);
+<span class="keyword">let</span> isDragging = $state(<span class="keyword">false</span>);
+<span class="keyword">let</span> submitting = $state(<span class="keyword">false</span>);
+<span class="keyword">let</span> submitted = $state(<span class="keyword">false</span>);
+<span class="keyword">let</span> error = $state(<span class="string">''</span>);</pre>
+
+  <h3>Vérification de la date limite</h3>
+  <pre>$effect(() => {
+  <span class="keyword">const</span> slug = $page.params.slug <span class="keyword">as</span> <span class="type">string</span>;
+  <span class="keyword">const</span> found = getJobBySlug(slug);
+  <span class="keyword">if</span> (found) {
+    <span class="keyword">if</span> (found.deadline && Date.now() > found.deadline) {
+      expired = <span class="keyword">true</span>;  <span class="comment">// Affiche "Candidatures closes"</span>
+    } <span class="keyword">else</span> {
+      job = found;  <span class="comment">// Affiche le formulaire</span>
+    }
+  } <span class="keyword">else</span> {
+    notFound = <span class="keyword">true</span>;  <span class="comment">// Affiche "Lien invalide"</span>
+  }
+  loading = <span class="keyword">false</span>;
+});</pre>
+
+  <h3>Gestion du drag-and-drop</h3>
+  <pre><span class="keyword">function</span> handleDrop(e: <span class="type">DragEvent</span>) {
+  e.preventDefault();
+  isDragging = <span class="keyword">false</span>;
+  <span class="keyword">const</span> files = e.dataTransfer?.files;
+  <span class="keyword">if</span> (files && files.length > <span class="number">0</span>) validateAndSetFile(files[<span class="number">0</span>]);
+}
+
+<span class="keyword">function</span> validateAndSetFile(file: <span class="type">File</span>) {
+  <span class="comment">// Vérification du type (PDF ou TXT)</span>
+  <span class="keyword">if</span> (![<span class="string">'application/pdf'</span>, <span class="string">'text/plain'</span>].includes(file.type)
+      && !file.name.endsWith(<span class="string">'.txt'</span>) && !file.name.endsWith(<span class="string">'.pdf'</span>)) {
+    error = <span class="string">'Format non supporté'</span>; <span class="keyword">return</span>;
+  }
+  <span class="comment">// Limite de taille : 10 Mo</span>
+  <span class="keyword">if</span> (file.size > <span class="number">10</span> * <span class="number">1024</span> * <span class="number">1024</span>) {
+    error = <span class="string">'Fichier trop volumineux (max 10 Mo)'</span>; <span class="keyword">return</span>;
+  }
+  cvFile = file;
+}</pre>
+
+  <h3>Soumission avec analyse</h3>
+  <pre><span class="keyword">async function</span> handleSubmit() {
+  <span class="comment">// 1. Lecture du fichier en base64</span>
+  <span class="keyword">const</span> fileBuffer = <span class="keyword">await</span> cvFile.arrayBuffer();
+  <span class="keyword">const</span> fileBytes = <span class="keyword">new</span> <span class="type">Uint8Array</span>(fileBuffer);
+  <span class="keyword">let</span> binary = <span class="string">''</span>;
+  fileBytes.forEach(<span class="keyword">byte</span> => binary += String.fromCharCode(byte));
+  <span class="keyword">const</span> cvFileData = btoa(binary);
+
+  <span class="comment">// 2. Extraction du texte</span>
+  <span class="keyword">const</span> cvText = <span class="keyword">await</span> extractTextFromFile(cvFile);
+
+  <span class="comment">// 3. Calcul des scores</span>
+  <span class="keyword">const</span> matchResults = calculateMatch(cvText, job.criteria);
+  <span class="keyword">const</span> overallMatch = calculateOverallMatch(cvText, job.criteria);
+
+  <span class="comment">// 4. Sauvegarde</span>
+  <span class="keyword">const</span> application: <span class="type">CandidateApplication</span> = {
+    id: crypto.randomUUID(), jobId: job.id,
+    candidateName: name.trim(), email: email.trim(),
+    cvText, cvFileName: cvFile.name,
+    cvFileData, cvFileType: cvFile.type,
+    matchResults, overallMatch, appliedAt: Date.now(),
+  };
+  addApplication(application);
+  submitted = <span class="keyword">true</span>;
+}</pre>
+</section>
+
+<!-- 11. CONFIGURATION -->
+<section>
+  <h2>11. Configuration</h2>
+
+  <h3>vite.config.ts</h3>
+  <p>Configure Vite avec les plugins SvelteKit et UnoCSS. Active le mode "runes" de Svelte 5 pour tous les fichiers hors node_modules.</p>
+  <pre><span class="keyword">import</span> adapter <span class="keyword">from</span> <span class="string">'@sveltejs/adapter-auto'</span>;
+<span class="keyword">import</span> { sveltekit } <span class="keyword">from</span> <span class="string">'@sveltejs/kit/vite'</span>;
+<span class="keyword">import</span> UnoCSS <span class="keyword">from</span> <span class="string">'unocss/vite'</span>;
+
+<span class="keyword">export default</span> defineConfig({
+  plugins: [
+    UnoCSS(),
+    sveltekit({
+      compilerOptions: {
+        runes: ({ filename }) =>
+          filename.split(<span class="regex">/[/\\]/</span>).includes(<span class="string">'node_modules'</span>) ? <span class="keyword">undefined</span> : <span class="keyword">true</span>
+      }
+    })
+  ]
+});</pre>
+
+  <h3>uno.config.js</h3>
+  <p>Configuration UnoCSS avec les presets par défaut (Tailwind-like) et attributify.</p>
+  <pre><span class="keyword">import</span> { defineConfig, presetUno, presetAttributify } <span class="keyword">from</span> <span class="string">'unocss'</span>
+<span class="keyword">export default</span> defineConfig({
+  presets: [presetUno(), presetAttributify()]
+})</pre>
+
+  <h3>app.html</h3>
+  <p>Template HTML racine avec la police Inter chargée depuis Google Fonts.</p>
+  <pre><!doctype html>
+<html lang="fr">
+  <head>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body style="font-family: 'Inter', sans-serif;">
+    %sveltekit.body%
+  </body>
+</html></pre>
+</section>
+
+<!-- 12. FLUX -->
+<section>
+  <h2>12. Flux utilisateur complet</h2>
+
+  <h3>Parcours recruteur</h3>
+  <div class="flow">
+    <span class="flow-step">1. Crée une offre</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">2. Définit les critères</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">3. Obtient un lien</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">4. Partage le lien</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">5. Reçoit les CV</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">6. Analyse les scores</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">7. Télécharge les CV</span>
+  </div>
+
+  <h3>Parcours candidat</h3>
+  <div class="flow">
+    <span class="flow-step">1. Reçoit le lien</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">2. Remplit le formulaire</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">3. Dépose son CV</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">4. Analyse automatique</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">5. Confirmation</span>
+  </div>
+
+  <h3>Diagramme de données</h3>
+  <pre>localStorage
+├── dyna_jobs: JobPost[]
+│   └── Chaque JobPost contient :
+│       ├── id, title, company, description, slug
+│       ├── deadline (timestamp | null)
+│       ├── createdAt
+│       └── criteria: CriterionGroup[]
+│           └── Chaque CriterionGroup :
+│               ├── id, name, weight
+│               └── keywords: CriterionKeyword[]
+│
+└── dyna_apps: CandidateApplication[]
+    └── Chaque CandidateApplication :
+        ├── id, jobId, candidateName, email
+        ├── cvText (texte extrait)
+        ├── cvFileName, cvFileData (base64), cvFileType
+        ├── matchResults: MatchResult[]
+        ├── overallMatch (0-100)
+        └── appliedAt</pre>
+
+  <h3>Cycle de vie d'une candidature</h3>
+  <ol>
+    <li><strong>Création de l'offre</strong> : Le recruteur remplit le formulaire → <code>createJob()</code> → sauvegarde dans localStorage</li>
+    <li><strong>Génération du slug</strong> : Basé sur le titre + 6 caractères aléatoires → URL unique <code>/apply/[slug]</code></li>
+    <li><strong>Dépôt du CV</strong> : Le candidat upload son fichier → validation (type, taille) → extraction du texte via pdfjs-dist</li>
+    <li><strong>Analyse</strong> : <code>calculateMatch()</code> cherche chaque mot-clé dans le texte du CV → <code>calculateOverallMatch()</code> calcule la moyenne pondérée</li>
+    <li><strong>Sauvegarde</strong> : <code>addApplication()</code> stocke tout (infos, texte, fichier base64, scores) dans localStorage</li>
+    <li><strong>Consultation</strong> : Le recruteur voit les candidatures triées par score, peut filtrer, voir les détails et télécharger le CV original</li>
+  </ol>
+</section>
+
+</div>
+</body>
+</html>
