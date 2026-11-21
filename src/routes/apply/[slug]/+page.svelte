@@ -1,252 +1,302 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { getJobBySlug, addApplication } from '$lib/stores/jobs';
 	import { extractTextFromFile } from '$lib/utils/cvParser';
 	import { calculateMatch, calculateOverallMatch } from '$lib/utils/matchCalculator';
-	import { page } from '$app/stores';
-	import type { CandidateApplication } from '$lib/types';
+	import type { CandidateApplication, JobPost } from '$lib/types';
+	import Icon from '$lib/components/Icon.svelte';
+	import { deadlineState, formatDateTime, formatSize } from '$lib/utils/format';
 
-	let job = $state<ReturnType<typeof getJobBySlug>>(undefined);
-	let loading = $state(true);
-	let notFound = $state(false);
-	let expired = $state(false);
+	type Status = 'loading' | 'notFound' | 'expired' | 'form' | 'submitted';
+
+	let status = $state<Status>('loading');
+	let job = $state<JobPost | undefined>(undefined);
 
 	let name = $state('');
 	let email = $state('');
 	let cvFile = $state<File | null>(null);
 	let isDragging = $state(false);
 	let submitting = $state(false);
-	let submitted = $state(false);
-	let error = $state('');
+	let phase = $state('');
+	let formError = $state('');
+	let fileError = $state('');
+	let touched = $state({ name: false, email: false });
+	let attempted = $state(false);
+	let fileInput = $state<HTMLInputElement | null>(null);
+
+	const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 	$effect(() => {
-		const slug = $page.params.slug as string;
-		const found = getJobBySlug(slug);
-		if (found) {
-			if (found.deadline && Date.now() > found.deadline) {
-				expired = true;
-			} else {
-				job = found;
-			}
+		const found = getJobBySlug(page.params.slug as string);
+		if (!found) status = 'notFound';
+		else if (found.deadline && Date.now() > found.deadline) {
+			job = found;
+			status = 'expired';
 		} else {
-			notFound = true;
+			job = found;
+			status = 'form';
 		}
-		loading = false;
 	});
 
-	function handleDragOver(e: DragEvent) {
+	const errors = $derived({
+		name: !name.trim() ? 'Indiquez votre nom.' : '',
+		email: !email.trim() ? 'Indiquez votre e-mail.' : !EMAIL_RE.test(email.trim()) ? 'Cette adresse e-mail semble invalide.' : '',
+		cv: !cvFile ? 'Joignez votre CV.' : ''
+	});
+	const show = (f: 'name' | 'email') => (touched[f] || attempted) && !!errors[f];
+	const progress = $derived([!errors.name, !errors.email, !errors.cv].filter(Boolean).length);
+	const dl = $derived(deadlineState(job?.deadline ?? null));
+
+	function onDragOver(e: DragEvent) {
 		e.preventDefault();
 		isDragging = true;
 	}
-	function handleDragLeave() { isDragging = false; }
-	function handleDrop(e: DragEvent) {
+	function onDrop(e: DragEvent) {
 		e.preventDefault();
 		isDragging = false;
-		const files = e.dataTransfer?.files;
-		if (files && files.length > 0) validateAndSetFile(files[0]);
+		const f = e.dataTransfer?.files?.[0];
+		if (f) setFile(f);
 	}
-	function handleFileInput(e: Event) {
-		const input = e.target as HTMLInputElement;
-		if (input.files && input.files.length > 0) validateAndSetFile(input.files[0]);
+	function onFileInput(e: Event) {
+		const f = (e.target as HTMLInputElement).files?.[0];
+		if (f) setFile(f);
 	}
-	function validateAndSetFile(file: File) {
-		if (!['application/pdf', 'text/plain'].includes(file.type) && !file.name.endsWith('.txt') && !file.name.endsWith('.pdf')) {
-			error = 'Format non supporté. Veuillez uploader un fichier PDF ou TXT.';
+	function setFile(file: File) {
+		const lower = file.name.toLowerCase();
+		if (!['application/pdf', 'text/plain'].includes(file.type) && !lower.endsWith('.pdf') && !lower.endsWith('.txt')) {
+			fileError = 'Format non pris en charge. Utilisez un fichier PDF ou TXT.';
 			return;
 		}
 		if (file.size > 10 * 1024 * 1024) {
-			error = 'Le fichier est trop volumineux (max 10 Mo).';
+			fileError = `Fichier trop volumineux (${formatSize(file.size)}). Maximum : 10 Mo.`;
 			return;
 		}
-		error = '';
+		fileError = '';
 		cvFile = file;
 	}
-	function removeFile() { cvFile = null; }
+	function removeFile() {
+		cvFile = null;
+		if (fileInput) fileInput.value = '';
+	}
 
-	async function handleSubmit() {
-		if (!name.trim() || !email.trim() || !cvFile) {
-			error = 'Veuillez remplir tous les champs et joindre votre CV.';
+	function toBase64(file: File): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const r = new FileReader();
+			r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
+			r.onerror = () => reject(r.error);
+			r.readAsDataURL(file);
+		});
+	}
+
+	async function handleSubmit(e: SubmitEvent) {
+		e.preventDefault();
+		attempted = true;
+		if (errors.name || errors.email || errors.cv || !job || !cvFile) {
+			document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
 			return;
 		}
-		if (!email.includes('@')) {
-			error = 'Veuillez entrer un email valide.';
-			return;
-		}
-		if (!job) return;
 		submitting = true;
-		error = '';
+		formError = '';
 		try {
-			const fileBuffer = await cvFile.arrayBuffer();
-			const fileBytes = new Uint8Array(fileBuffer);
-			let binary = '';
-			fileBytes.forEach(byte => binary += String.fromCharCode(byte));
-			const cvFileData = btoa(binary);
-
-			const cvText = await extractTextFromFile(cvFile);
+			phase = 'Lecture de votre CV…';
+			const [cvFileData, cvText] = await Promise.all([toBase64(cvFile), extractTextFromFile(cvFile)]);
 			if (!cvText.trim()) {
-				error = 'Impossible d\'extraire le texte du CV. Vérifiez que le fichier n\'est pas scanné.';
-				submitting = false;
+				formError = 'Nous n’avons pas pu lire le texte de votre CV. S’il s’agit d’un scan ou d’une image, exportez-le en PDF texte depuis votre traitement de texte.';
 				return;
 			}
-			const matchResults = calculateMatch(cvText, job.criteria);
-			const overallMatch = calculateOverallMatch(cvText, job.criteria);
+			phase = 'Analyse en cours…';
 			const application: CandidateApplication = {
-				id: crypto.randomUUID(), jobId: job.id, candidateName: name.trim(), email: email.trim(),
-				cvText, cvFileName: cvFile.name, cvFileData, cvFileType: cvFile.type || 'application/octet-stream',
-				matchResults, overallMatch, appliedAt: Date.now(),
+				id: crypto.randomUUID(),
+				jobId: job.id,
+				candidateName: name.trim(),
+				email: email.trim(),
+				cvText,
+				cvFileName: cvFile.name,
+				cvFileData,
+				cvFileType: cvFile.type || 'application/octet-stream',
+				matchResults: calculateMatch(cvText, job.criteria),
+				overallMatch: calculateOverallMatch(cvText, job.criteria),
+				appliedAt: Date.now()
 			};
 			addApplication(application);
-			submitted = true;
+			status = 'submitted';
+			window.scrollTo({ top: 0 });
 		} catch (err) {
 			console.error(err);
-			error = 'Une erreur est survenue lors du traitement de votre CV. Veuillez réessayer.';
+			formError = 'Une erreur est survenue pendant l’envoi. Réessayez dans un instant.';
+		} finally {
+			submitting = false;
+			phase = '';
 		}
-		submitting = false;
 	}
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-indigo-900 via-slate-900 to-violet-900 relative overflow-hidden">
-	<!-- Background decorations -->
-	<div class="absolute inset-0 overflow-hidden pointer-events-none">
-		<div class="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl"></div>
-		<div class="absolute -bottom-40 -left-40 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl"></div>
-		<div class="absolute top-1/3 left-1/2 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
-	</div>
+<svelte:head><title>{job ? `Postuler · ${job.title} — ${job.company}` : 'Candidature'}</title></svelte:head>
 
-	{#if loading}
-		<div class="flex items-center justify-center min-h-screen relative">
-			<div class="animate-spin rounded-full h-10 w-10 border-2 border-indigo-400 border-t-transparent"></div>
+<div class="min-h-screen bg-slate-50">
+	{#if status === 'loading'}
+		<div class="flex items-center justify-center min-h-screen" role="status" aria-label="Chargement">
+			<div class="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent"></div>
 		</div>
-	{:else if notFound || expired}
-		<div class="flex items-center justify-center min-h-screen p-6 relative">
-			<div class="bg-white/10 backdrop-blur-xl rounded-3xl p-12 max-w-md w-full text-center border border-white/10">
-				<div class="w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-					<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-						{#if expired}
-							<path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+	{:else if status === 'notFound' || status === 'expired'}
+		<main id="main" class="flex items-center justify-center min-h-screen p-6">
+			<div class="card-surface anim-pop p-8 sm:p-10 max-w-md w-full text-center">
+				<div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 {status === 'expired' ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-400'}">
+					<Icon name={status === 'expired' ? 'lock' : 'sad'} class="w-7 h-7" stroke={1.75} />
+				</div>
+				<h1 class="text-xl font-bold text-slate-900 mb-2">{status === 'expired' ? 'Candidatures clôturées' : 'Offre introuvable'}</h1>
+				{#if status === 'expired' && job}
+					<p class="text-slate-500">
+						Les candidatures pour <span class="font-medium text-slate-700">{job.title}</span> chez {job.company} sont fermées depuis le {formatDateTime(job.deadline!)}.
+					</p>
+				{:else}
+					<p class="text-slate-500">Ce lien est invalide ou l’offre a été retirée. Vérifiez l’adresse auprès de la personne qui vous l’a transmise.</p>
+				{/if}
+			</div>
+		</main>
+	{:else if status === 'submitted' && job}
+		<main id="main" class="flex items-center justify-center min-h-screen p-6">
+			<div class="card-surface anim-pop p-8 sm:p-10 max-w-md w-full text-center">
+				<div class="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-5 ring-8 ring-emerald-50/50">
+					<Icon name="check" class="w-8 h-8 text-emerald-600" stroke={2.5} />
+				</div>
+				<h1 class="text-2xl font-bold text-slate-900 mb-2">Candidature envoyée</h1>
+				<p class="text-slate-500 mb-6">Merci {name.trim().split(' ')[0]} ! {job.company} a bien reçu votre candidature au poste de <span class="font-medium text-slate-700">{job.title}</span>.</p>
+				<dl class="text-left text-sm bg-slate-50 rounded-xl p-4 space-y-2">
+					<div class="flex justify-between gap-4"><dt class="text-slate-500">Nom</dt><dd class="font-medium text-slate-800 truncate">{name}</dd></div>
+					<div class="flex justify-between gap-4"><dt class="text-slate-500">E-mail</dt><dd class="font-medium text-slate-800 truncate">{email}</dd></div>
+					<div class="flex justify-between gap-4"><dt class="text-slate-500">CV</dt><dd class="font-medium text-slate-800 truncate">{cvFile?.name}</dd></div>
+				</dl>
+				<p class="text-xs text-slate-400 mt-5">Le recruteur reviendra vers vous à l’adresse indiquée. Vous pouvez fermer cette page.</p>
+			</div>
+		</main>
+	{:else if job}
+		<!-- Bandeau de l'offre -->
+		<div class="bg-gradient-to-br from-indigo-600 via-indigo-600 to-violet-600 text-white">
+			<div class="max-w-5xl mx-auto px-4 sm:px-6 pt-10 pb-24 sm:pb-28">
+				<p class="inline-flex items-center gap-1.5 text-xs font-medium bg-white/15 rounded-full px-3 py-1 mb-4">
+					<Icon name="building" class="w-3.5 h-3.5" />{job.company}
+				</p>
+				<h1 class="text-3xl sm:text-4xl font-bold tracking-tight">{job.title}</h1>
+				{#if dl.kind === 'soon' || dl.kind === 'open'}
+					<p class="mt-3 text-indigo-100 text-sm flex items-center gap-1.5">
+						<Icon name="clock" class="w-4 h-4" />Candidatures ouvertes jusqu’au {formatDateTime(job.deadline!)}
+						{#if dl.kind === 'soon'}<span class="chip bg-amber-400 text-amber-950 ml-1">Clôture {dl.label}</span>{/if}
+					</p>
+				{/if}
+			</div>
+		</div>
+
+		<main id="main" class="max-w-5xl mx-auto px-4 sm:px-6 -mt-16 sm:-mt-20 pb-16 grid lg:grid-cols-[1fr_400px] gap-6 items-start">
+			<!-- Formulaire (en premier sur mobile) -->
+			<form class="card-surface shadow-xl shadow-slate-900/5 p-5 sm:p-7 lg:order-2 lg:sticky lg:top-6" novalidate onsubmit={handleSubmit} aria-labelledby="form-title">
+				<div class="flex items-center justify-between mb-1">
+					<h2 id="form-title" class="text-lg font-bold text-slate-900">Postuler</h2>
+					<span class="text-xs text-slate-400 tabular" aria-live="polite">{progress}/3 complétés</span>
+				</div>
+				<div class="h-1 bg-slate-100 rounded-full overflow-hidden mb-6" aria-hidden="true">
+					<div class="h-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-all duration-300" style="width:{(progress / 3) * 100}%"></div>
+				</div>
+
+				{#if formError}
+					<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm flex gap-2 mb-5" role="alert">
+						<Icon name="alert" class="w-5 h-5 flex-shrink-0" />{formError}
+					</div>
+				{/if}
+
+				<div class="space-y-4">
+					<div>
+						<label for="candidate-name" class="field-label">Nom complet</label>
+						<input id="candidate-name" type="text" bind:value={name} autocomplete="name" placeholder="Prénom Nom"
+							onblur={() => (touched.name = true)} aria-invalid={show('name')} aria-describedby={show('name') ? 'name-err' : undefined}
+							class="input-field {show('name') ? 'border-red-400' : ''}" />
+						{#if show('name')}<p id="name-err" class="field-error"><Icon name="alert" class="w-3.5 h-3.5" />{errors.name}</p>{/if}
+					</div>
+					<div>
+						<label for="candidate-email" class="field-label">E-mail</label>
+						<input id="candidate-email" type="email" bind:value={email} autocomplete="email" inputmode="email" placeholder="vous@exemple.com"
+							onblur={() => (touched.email = true)} aria-invalid={show('email')} aria-describedby={show('email') ? 'email-err' : undefined}
+							class="input-field {show('email') ? 'border-red-400' : ''}" />
+						{#if show('email')}<p id="email-err" class="field-error"><Icon name="alert" class="w-3.5 h-3.5" />{errors.email}</p>{/if}
+					</div>
+
+					<div>
+						<span class="field-label" id="cv-label">CV</span>
+						{#if cvFile}
+							<div class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5 anim-pop">
+								<div class="w-10 h-10 rounded-lg bg-white border border-emerald-200 flex items-center justify-center flex-shrink-0">
+									<Icon name="doc" class="w-5 h-5 text-emerald-600" />
+								</div>
+								<div class="flex-1 min-w-0">
+									<p class="text-sm font-medium text-slate-900 truncate">{cvFile.name}</p>
+									<p class="text-xs text-slate-500">{formatSize(cvFile.size)} · prêt à l’envoi</p>
+								</div>
+								<button type="button" onclick={removeFile} class="btn-icon w-8 h-8 hover:text-red-600 hover:bg-red-50" aria-label="Retirer le fichier {cvFile.name}">
+									<Icon name="x" class="w-4 h-4" />
+								</button>
+							</div>
 						{:else}
-							<path d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-						{/if}
-					</svg>
-				</div>
-				<h1 class="text-2xl font-bold text-white mb-2">{expired ? 'Candidatures closes' : 'Lien invalide'}</h1>
-				<p class="text-white/60">{expired ? 'La date limite de candidature pour cette offre est dépassée.' : 'Cette offre d\'emploi n\'existe pas ou a été supprimée.'}</p>
-			</div>
-		</div>
-	{:else if submitted}
-		<div class="flex items-center justify-center min-h-screen p-6 relative">
-			<div class="bg-white/10 backdrop-blur-xl rounded-3xl p-12 max-w-md w-full text-center border border-white/10 animate-[scale-in_0.3s_ease-out]">
-				<div class="w-20 h-20 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-					<svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
-				</div>
-				<h1 class="text-2xl font-bold text-white mb-2">Candidature envoyée !</h1>
-				<p class="text-white/60 mb-6">Votre CV a été reçu avec succès.</p>
-			</div>
-		</div>
-	{:else}
-		<div class="min-h-screen flex items-center justify-center p-6 relative">
-			<div class="w-full max-w-2xl">
-				<!-- Brand -->
-				<div class="text-center mb-8">
-					<div class="w-14 h-14 bg-gradient-to-br from-indigo-400 to-violet-400 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-xl shadow-indigo-500/20">
-						<svg xmlns="http://www.w3.org/2000/svg" class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-					</div>
-					<h1 class="text-2xl font-bold text-white">Postulez à cette offre</h1>
-				</div>
-
-				<div class="bg-white/10 backdrop-blur-xl rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
-					<!-- Job header -->
-					<div class="bg-gradient-to-r from-indigo-500/20 to-violet-500/20 p-8 border-b border-white/10">
-						<h2 class="text-xl font-bold text-white mb-1">{job!.title}</h2>
-						<p class="text-white/60 text-sm flex items-center gap-1.5">
-							<svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-							{job!.company}
-						</p>
-						{#if job!.description}
-							<p class="text-white/50 text-sm mt-3">{job!.description}</p>
-						{/if}
-					</div>
-
-					<div class="p-8 space-y-6">
-						{#if error}
-							<div class="bg-red-500/10 border border-red-500/20 text-red-300 px-4 py-3 rounded-xl text-sm flex items-center gap-2">
-								<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-								{error}
-							</div>
-						{/if}
-
-						<!-- Form fields -->
-						<div class="grid gap-4">
-							<div>
-								<label for="candidate-name" class="block text-sm font-medium text-white/80 mb-1.5">Nom complet *</label>
-								<input id="candidate-name" type="text" bind:value={name} placeholder="Votre nom" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400/50 outline-none transition-all text-white placeholder-white/30 text-sm" />
-							</div>
-							<div>
-								<label for="candidate-email" class="block text-sm font-medium text-white/80 mb-1.5">Email *</label>
-								<input id="candidate-email" type="email" bind:value={email} placeholder="votre@email.com" class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400/50 outline-none transition-all text-white placeholder-white/30 text-sm" />
-							</div>
-						</div>
-
-						<!-- CV Upload -->
-						<div>
-							<label for="cv-input" class="block text-sm font-medium text-white/80 mb-2">CV (PDF ou TXT) *</label>
-							{#if cvFile}
-								<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex items-center justify-between">
-									<div class="flex items-center gap-3">
-										<svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-										<div>
-											<p class="text-sm font-medium text-emerald-300">{cvFile.name}</p>
-											<p class="text-xs text-emerald-400/60">{(cvFile.size / 1024).toFixed(1)} Ko</p>
-										</div>
-									</div>
-									<button onclick={removeFile} aria-label="Supprimer le fichier" class="p-1.5 hover:bg-emerald-500/20 rounded-lg transition-colors">
-										<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
-									</button>
+							<label for="cv-input"
+								class="block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all focus-within:ring-4 focus-within:ring-indigo-500/10 {isDragging ? 'border-indigo-500 bg-indigo-50' : (attempted && errors.cv) || fileError ? 'border-red-300 bg-red-50/30' : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/40'}"
+								ondragover={onDragOver} ondragenter={onDragOver} ondragleave={() => (isDragging = false)} ondrop={onDrop}>
+								<div class="w-11 h-11 rounded-full bg-indigo-50 flex items-center justify-center mx-auto mb-3 transition-transform {isDragging ? 'scale-110' : ''}">
+									<Icon name="upload" class="w-5 h-5 text-indigo-600" />
 								</div>
-							{:else}
-								<div
-									class="border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all {isDragging ? 'border-indigo-400 bg-indigo-500/10' : 'border-white/10 hover:border-indigo-400/50 hover:bg-white/5'}"
-									ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop}
-									onclick={() => document.getElementById('cv-input')?.click()}
-									role="button" tabindex="0"
-									onkeydown={(e) => e.key === 'Enter' && document.getElementById('cv-input')?.click()}
-								>
-									<svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto text-white/20 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-									<p class="text-white/70 font-medium mb-1">Glissez-déposez votre CV ici</p>
-									<p class="text-white/40 text-sm">ou cliquez pour parcourir (PDF, TXT - max 10 Mo)</p>
-								</div>
-								<input type="file" id="cv-input" accept=".pdf,.txt,application/pdf,text/plain" class="hidden" onchange={handleFileInput} />
+								<p class="text-sm text-slate-700"><span class="font-semibold text-indigo-600">Choisissez un fichier</span> ou glissez-le ici</p>
+								<p class="text-xs text-slate-400 mt-1">PDF ou TXT · 10 Mo maximum</p>
+								<input bind:this={fileInput} id="cv-input" type="file" accept=".pdf,.txt,application/pdf,text/plain" class="sr-only"
+									onchange={onFileInput} aria-labelledby="cv-label" aria-invalid={attempted && !!errors.cv} aria-describedby={fileError || (attempted && errors.cv) ? 'cv-err' : undefined} />
+							</label>
+							{#if fileError || (attempted && errors.cv)}
+								<p id="cv-err" class="field-error"><Icon name="alert" class="w-3.5 h-3.5" />{fileError || errors.cv}</p>
 							{/if}
-						</div>
-
-						<!-- Criteria -->
-						<div class="bg-white/5 rounded-2xl p-5">
-							<h3 class="text-sm font-medium text-white/80 mb-3">Critères d'évaluation</h3>
-							<div class="space-y-3">
-								{#each job!.criteria as group}
-									<div>
-										<p class="text-xs text-white/50 font-medium mb-1">{group.name}</p>
-										<div class="flex flex-wrap gap-1">
-											{#each group.keywords as kw}
-												<span class="text-xs bg-white/10 text-white/60 px-2 py-0.5 rounded-lg border border-white/5">{kw.text}</span>
-											{/each}
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-
-						<button onclick={handleSubmit} disabled={submitting || !name.trim() || !email.trim() || !cvFile} class="w-full py-3.5 bg-gradient-to-r from-indigo-500 to-violet-500 text-white rounded-2xl hover:from-indigo-600 hover:to-violet-600 disabled:opacity-40 disabled:cursor-not-allowed text-base font-bold transition-all shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 flex items-center justify-center gap-2">
-							{#if submitting}
-								<div class="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-								Analyse en cours...
-							{:else}
-								<svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-								Envoyer ma candidature
-							{/if}
-						</button>
+						{/if}
 					</div>
+
+					<button type="submit" disabled={submitting} class="btn-primary w-full py-3 text-base mt-2">
+						{#if submitting}
+							<span class="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></span>
+							{phase || 'Envoi…'}
+						{:else}
+							Envoyer ma candidature
+							<Icon name="arrowRight" class="w-4 h-4" />
+						{/if}
+					</button>
+					<p class="text-xs text-slate-400 text-center">Votre CV est analysé automatiquement au regard des critères de l’offre.</p>
 				</div>
+			</form>
+
+			<!-- Détails de l'offre -->
+			<div class="space-y-6 lg:order-1 min-w-0">
+				{#if job.description}
+					<section class="card-surface p-5 sm:p-7">
+						<h2 class="text-base font-semibold text-slate-900 mb-3">À propos du poste</h2>
+						<p class="text-slate-600 leading-relaxed whitespace-pre-line">{job.description}</p>
+					</section>
+				{/if}
+
+				<section class="card-surface p-5 sm:p-7">
+					<h2 class="text-base font-semibold text-slate-900">Ce que nous recherchons</h2>
+					<p class="text-sm text-slate-500 mt-1 mb-5">Mentionnez clairement ces compétences dans votre CV : il est évalué sur cette base.</p>
+					<div class="space-y-4">
+						{#each [...job.criteria].sort((a, b) => b.weight - a.weight) as group}
+							<div>
+								<div class="flex items-center gap-2 mb-2">
+									<h3 class="text-sm font-medium text-slate-800">{group.name}</h3>
+									{#if group.weight >= 4}
+										<span class="chip bg-indigo-50 text-indigo-700">{group.weight === 5 ? 'Essentiel' : 'Très important'}</span>
+									{/if}
+								</div>
+								<ul class="flex flex-wrap gap-1.5">
+									{#each group.keywords as kw}
+										<li class="text-sm bg-slate-50 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200">{kw.text}</li>
+									{/each}
+								</ul>
+							</div>
+						{/each}
+					</div>
+				</section>
 			</div>
-		</div>
+		</main>
 	{/if}
 </div>

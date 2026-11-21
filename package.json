@@ -16,6 +16,7 @@
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@types/pdfjs-dist": "^2.10.377",
+		"@unocss/reset": "^66.7.4",
 		"@unocss/svelte-scoped": "^66.7.4",
 		"pdfjs-dist": "^4.9.155",
 		"svelte": "^5.56.1",

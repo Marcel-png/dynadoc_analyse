@@ -1,44 +1,45 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+	import Modal from './Modal.svelte';
+	import Icon from './Icon.svelte';
 
-  let { open = false, src = '', poster = '' }: { open: boolean; src: string; poster?: string } = $props();
-  let videoEl: HTMLVideoElement | null = $state(null);
+	let { open = $bindable(false), src = '', poster = '' }: { open?: boolean; src: string; poster?: string } = $props();
 
-  $effect(() => {
-    if (videoEl) {
-      if (open) {
-        videoEl.currentTime = 0;
-        const p = videoEl.play();
-        if (p && typeof p.catch === 'function') p.catch(() => {});
-      } else {
-        videoEl.pause();
-        try { videoEl.currentTime = 0; } catch(e) {}
-      }
-    }
-  });
+	let videoEl = $state<HTMLVideoElement | null>(null);
+	let failed = $state(false);
 
-  function close() {
-    open = false;
-  }
+	$effect(() => {
+		if (!videoEl) return;
+		if (open) {
+			videoEl.currentTime = 0;
+			videoEl.play().catch(() => {});
+		}
+	});
 
-  onDestroy(() => {
-    if (videoEl) {
-      try { videoEl.pause(); } catch(e) {}
-    }
-  });
+	function onClose() {
+		videoEl?.pause();
+	}
 </script>
 
-{#if open}
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onclick={close} role="dialog" tabindex="-1">
-    <div class="max-w-3xl w-full mx-4" onclick={(e) => e.stopPropagation()} role="document">
-      <div class="bg-white rounded-lg overflow-hidden">
-        <div class="relative">
-          <video bind:this={videoEl} src={src} poster={poster} controls playsinline class="w-full h-auto bg-black"></video>
-          <button aria-label="Fermer" class="absolute top-3 right-3 bg-white/90 rounded-full p-2 shadow" onclick={close}>
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-{/if}
+<Modal bind:open size="xl" labelledby="video-title" onclose={onClose}>
+	<div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+		<h2 id="video-title" class="font-semibold text-slate-900 flex items-center gap-2">
+			<Icon name="play" class="w-5 h-5 text-indigo-600" />
+			Démo de DynaRecrut
+		</h2>
+		<button type="button" class="btn-icon" aria-label="Fermer la vidéo" onclick={() => { open = false; onClose(); }}>
+			<Icon name="x" class="w-5 h-5" />
+		</button>
+	</div>
+	<div class="bg-slate-950 rounded-b-2xl overflow-hidden aspect-video flex items-center justify-center">
+		{#if failed}
+			<div class="text-center text-white/70 p-8">
+				<Icon name="alert" class="w-10 h-10 mx-auto mb-3 text-white/40" />
+				<p class="font-medium text-white">Vidéo indisponible</p>
+				<p class="text-sm mt-1">Le fichier de démonstration n’a pas pu être chargé.</p>
+			</div>
+		{:else}
+			<!-- svelte-ignore a11y_media_has_caption -->
+			<video bind:this={videoEl} {src} {poster} controls playsinline class="w-full h-full" onerror={() => (failed = true)}></video>
+		{/if}
+	</div>
+</Modal>
